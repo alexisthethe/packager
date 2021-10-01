@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "before the package is getting installed"

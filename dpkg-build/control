@@ -1,0 +1,9 @@
+Package: your-package-name
+Version: 0.0.dev
+Architecture: all
+Essential: no
+Priority: optional
+Depends: 
+Maintainer: alexis
+Description: Your Application Name
+  Description of your awesome application.

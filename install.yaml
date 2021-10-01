@@ -1,0 +1,25 @@
+metadata:
+  name: your-package-name
+  maintainer: John Kenedi (john.k@awesome.com)
+  version: 0.0
+  patch: dev
+  arch: all
+  description: >
+    Your Application Name
+      This is an awesome app
+
+install:
+  folders:
+    - /app/new_folder/new_subfolder
+    - /home/second_new_folder
+  files:
+    - source: file.txt
+      dest_folder: /app/files
+      dest_name: installed_file.txt
+  symbolic_links:
+    - dest_folder: /app/links
+      link_name: link_to_file.txt
+      target: ../file.txt
+
+preinst: preinst_script.sh
+postinst: postinst_script.sh

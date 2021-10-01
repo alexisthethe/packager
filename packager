@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# CONFIG
+
+BUILD_DIR=/tmp/dpkgbuild
+
+
+# CONSTANTS
+
+SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+PROJECT_DIR=$(dirname "${SCRIPT_DIR}")
+RELEASE_DIR=${PROJECT_DIR}/release
+INSTALL_FILE=${SCRIPT_DIR}/install.conf
+
+VERSION=$(cat ${PROJECT_DIR}/config/version.conf)
+PATCH=$(cat ${PROJECT_DIR}/config/patch.conf)
+ARCH="all"  # TODO ?
+PACKAGE_NAME=$(cat ${SCRIPT_DIR}/control | grep "Package:" | cut -d":" -f2 | xargs)
+PACKAGE_FULLNAME="${PACKAGE_NAME}_${VERSION}.${PATCH}_${ARCH}"
+
+# FONCTIONS
+
+create_sources()
+{
+    while read p; do
+        p=$(echo $p | xargs)
+        nb_args=$(echo $p | wc -w)
+        source=$(echo $p | cut -d' ' -f1)
+        dest=$(echo $p | cut -d' ' -f2)
+        if [[ "$dest" == */ ]]; then
+            # if dest is a folder name
+            mkdir -p ${BUILD_DIR}/${PACKAGE_FULLNAME}/${dest}
+        else
+            # if dest is a file name
+            dest_dir=$(dirname $dest)
+            mkdir -p ${BUILD_DIR}/${PACKAGE_FULLNAME}/${dest_dir}
+        fi
+        #echo "${source} => ${dest}"
+        cp -r ${PROJECT_DIR}/${source} ${BUILD_DIR}/${PACKAGE_FULLNAME}/${dest}
+    done < ${DISTRIB_FILE}
+}
+
+set_control_file()
+{
+    # Set version
+    sed -i "s/^\(Version:\s*\).*$/\1${VERSION}.${PATCH}/" ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN/control
+    # Set arch
+    sed -i "s/^\(Architecture:\s*\).*$/\1${ARCH}/" ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN/control
+}
+
+generate_metadata()
+{
+    debsize=$(stat -c%s ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb)
+    debmd5sum=$(md5sum ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb | cut -d' ' -f1)
+    echo "name: ${PACKAGE_FULLNAME}.deb" > ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb.metadata
+    echo "size: ${debsize}" >> ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb.metadata
+    echo "md5sum: ${debmd5sum}" >> ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb.metadata
+}
+
+inc_patch()
+{
+    new_patch=$(expr $PATCH + 1)
+    echo "${new_patch}" > ${PROJECT_DIR}/config/patch.conf
+}
+
+
+# MAIN
+
+rm -rf ${BUILD_DIR}
+mkdir -p ${BUILD_DIR}
+mkdir -p ${BUILD_DIR}/${PACKAGE_FULLNAME}
+mkdir -p ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN
+
+mkdir -p ${RELEASE_DIR}
+rm -rf ${RELEASE_DIR}/${PACKAGE_FULLNAME}
+
+cp ${SCRIPT_DIR}/control ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN/
+cp ${SCRIPT_DIR}/preinst ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN/
+cp ${SCRIPT_DIR}/postinst ${BUILD_DIR}/${PACKAGE_FULLNAME}/DEBIAN/
+set_control_file
+
+create_sources
+
+dpkg-deb --build ${BUILD_DIR}/${PACKAGE_FULLNAME} ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb
+
+generate_metadata
+
+echo "------------------------------------"
+echo "  DEB package generated successfully !"
+echo -n "path: "
+ls ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb
+echo "------------------------------------"
+echo "  METADATA:"
+cat ${RELEASE_DIR}/${PACKAGE_FULLNAME}.deb.metadata
+echo "------------------------------------"
+
+inc_patch
+
+#rm -rf ${BUILD_DIR}
